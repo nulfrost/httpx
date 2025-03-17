@@ -4,11 +4,7 @@ use std::net::{TcpListener, TcpStream};
 fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024]; // Read first 1024 bytes
     match stream.read(&mut buffer) {
-        Ok(n) => println!(
-            "Received {} bytes:\n{}",
-            n,
-            String::from_utf8_lossy(&buffer[..n])
-        ),
+        Ok(n) => parse_path(n, buffer),
         Err(e) => eprintln!("Error reading stream: {}", e),
     }
 
@@ -37,4 +33,13 @@ fn main() -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+fn parse_path(n: usize, buffer: [u8; 1024]) {
+    let raw_request = String::from_utf8_lossy(&buffer[..n]);
+    let request_path: Vec<&str> = raw_request.split(" ").collect();
+
+    if let Some(path) = request_path.get(1) {
+        println!("Path: {}", path)
+    }
 }
