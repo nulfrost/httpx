@@ -1,14 +1,17 @@
+use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
 fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024]; // Read first 1024 bytes
-    match stream.read(&mut buffer) {
-        Ok(n) => parse_path(n, buffer),
-        Err(e) => eprintln!("Error reading stream: {}", e),
-    }
 
-    let body = b"<html><body><main><h1>hello world</h1></main></body></html>";
+    let buff_result = stream.read(&mut buffer).expect("error reading buffer");
+
+    parse_path(buff_result, buffer);
+
+    let html_to_render = read_html("static/index.html");
+
+    let body = html_to_render.as_bytes();
     let content_length = body.len();
     let headers = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n",
@@ -20,10 +23,10 @@ fn handle_client(mut stream: TcpStream) {
         Err(e) => eprintln!("error writing headers {}", e),
     }
 
-    match stream.write_all(body) {
-        Ok(_) => println!("wrote body"),
-        Err(e) => eprintln!("error writing body {}", e),
-    }
+    stream
+        .write_all(headers.as_bytes())
+        .expect("error writing headers");
+    stream.write_all(body).expect("error writing body")
 }
 
 fn main() -> std::io::Result<()> {
@@ -33,6 +36,11 @@ fn main() -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+fn read_html(file: &str) -> String {
+    let html = fs::read_to_string(file).expect("could not read html file");
+    html
 }
 
 fn parse_path(n: usize, buffer: [u8; 1024]) {
