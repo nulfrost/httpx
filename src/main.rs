@@ -1,6 +1,9 @@
+use notify::{Event, RecursiveMode, Result, Watcher};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
+use std::sync::mpsc;
 
 fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024]; // Read first 1024 bytes
@@ -18,21 +21,31 @@ fn handle_client(mut stream: TcpStream) {
         content_length
     );
 
-    match stream.write_all(headers.as_bytes()) {
-        Ok(_) => println!("wrote headers"),
-        Err(e) => eprintln!("error writing headers {}", e),
-    }
-
     stream
         .write_all(headers.as_bytes())
         .expect("error writing headers");
+
     stream.write_all(body).expect("error writing body")
 }
 
-fn main() -> std::io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:8080")?;
-    for stream in listener.incoming() {
-        handle_client(stream?);
+fn main() -> Result<()> {
+    // let listener = TcpListener::bind("127.0.0.1:8080")?;
+    // for stream in listener.incoming() {
+    //     handle_client(stream?);
+    // }
+
+    // Ok(())
+    let (tx, rx) = mpsc::channel::<Result<Event>>();
+
+    let mut watcher = notify::recommended_watcher(tx)?;
+
+    watcher.watch(Path::new("static"), RecursiveMode::Recursive)?;
+
+    for res in rx {
+        match res {
+            Ok(event) => println!("event: {:?}", event),
+            Err(e) => println!("watch error: {:?}", e),
+        }
     }
 
     Ok(())
